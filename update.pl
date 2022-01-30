@@ -8,7 +8,7 @@ use XML::Feed;
 
 open STDOUT, '>', 'feed.xml';
 
-my $feed = XML::Feed->new('RSS');
+my $feed = XML::Feed->new('Atom');
 
 $feed->id("http://".time.rand()."/"); # 魔法……不知道是什么
 $feed->title('jyi2ya 的博客'); # 频道名称
