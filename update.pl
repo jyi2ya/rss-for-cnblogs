@@ -8,23 +8,50 @@ use XML::Feed;
 
 open STDOUT, '>', 'feed.xml';
 
+my $blog_url = 'https://www.cnblogs.com/jyi2ya/';
+my $feed_url = '';
+my $time_zone = 'Asia/Shanghai';
+
 my $feed = XML::Feed->new('Atom');
-
-$feed->id("http://".time.rand()."/"); # 魔法……不知道是什么
-$feed->title('jyi2ya 的博客'); # 频道名称
-$feed->link('https://cnblogs.com/jyi2ya'); # 与频道关联的站点 url
-$feed->description('记录一些奇奇怪怪的东西'); # 频道描述
-$feed->language('zh-cn'); #频道语言
-$feed->copyright('© 2022 jyi2ya'); # 版权说明 TODO:年份改成自动的
-$feed->generator('jyi2ya magic rss generator'); # 生成 rss 的程序的名字
-$feed->self_link('http://orz.sto'); # 链接到 rss 自己的网址 TODO 改这个
-$feed->modified(DateTime->now); # 修改日期
-
 my $http = HTTP::Tiny->new;
 
-$_ = $http->get('https://www.cnblogs.com/jyi2ya/')->{content};
-my @urls = uniq sort { $b cmp $a } m{https://www.cnblogs.com/jyi2ya/p/[0-9]+.html}sg;
+$_ = $http->get($blog_url)->{content};
 
+$feed->id("http://".time.rand()."/"); # 魔法……不知道是什么
+
+my ($title) = m{<title>(.*?) - 博客园</title>};
+$feed->title($title); # 频道名称
+
+$feed->link($blog_url); # 与频道关联的站点 url
+
+my ($desc) = m{<p id="tagline">(.*?)</p>};
+$feed->description($desc); # 频道描述
+
+$feed->language('zh-cn'); # 频道语言
+
+my ($copyright) = m{(Copyright &copy; .*)};
+$feed->copyright($copyright); # 版权说明
+
+$feed->generator('jyi2ya magic rss generator'); # 生成 rss 的程序的名字
+
+$feed->self_link('http://orz.sto'); # 链接到 rss 自己的网址 TODO 改这个
+
+m{posted @ ([^-]*?)-([^-]*?)-([^-]*?) ([^:]*?):(.*)};
+# 修改日期
+$feed->modified(
+	DateTime->new(
+		year => $1,
+		month => $2,
+		day => $3,
+		hour => $4,
+		minute => $5,
+		second => 0,
+		nanosecond => 0,
+		time_zone => $time_zone
+	)
+);
+
+my @urls = uniq sort { $b cmp $a } m{https://www.cnblogs.com/jyi2ya/p/[0-9]+.html}sg;
 for my $url (@urls) {
 	$_ = $http->get($url)->{content};
 	my $entry = XML::Feed::Entry->new();
@@ -45,8 +72,20 @@ for my $url (@urls) {
 	$entry->author('jyi2ya'); # 文章作者
 
 	$entry->category('note'); # 文章分类 TODO: 改这些
-	$entry->issued(DateTime->now); # 发布时间
-	$entry->modified(DateTime->now); # 修改时间
+
+	m{<span id="post-date">([^-]*?)-([^-]*?)-([^-]*?) ([^:]*?):(.*)</span>};
+	my $date = DateTime->new(
+		year => $1,
+		month => $2,
+		day => $3,
+		hour => $4,
+		minute => $5,
+		second => 0,
+		nanosecond => 0,
+		time_zone => $time_zone
+	);
+	$entry->issued($date); # 发布时间
+	$entry->modified($date); # 修改时间
 
 	$feed->add_entry($entry);
 }
