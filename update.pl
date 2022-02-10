@@ -1,41 +1,39 @@
 #!perl
 
+my $blog_url = undef;
+my $feed_url = undef;
+my $time_zone = undef;
+my $generator = undef;
+my $author = undef;
+
 use v5.12;
 use HTTP::Tiny;
 use List::Util qw/uniq max/;
 use DateTime;
 use XML::Feed;
 
-my $blog_url = 'https://www.cnblogs.com/jyi2ya/';
-my $feed_url = '';
-my $time_zone = 'Asia/Shanghai';
+die unless defined $blog_url;
+$feed_url //= $blog_url;
+$time_zone //= 'Asia/Shanghai';
+$generator //= 'jyi2ya magic rss generator';
+($author) = ($author // $blog_url =~ m{https://www\.cnblogs\.com/([^/]*)/});
 
-my $feed = XML::Feed->new('Atom');
 my $http = HTTP::Tiny->new;
 
+# atom 格式：https://validator.w3.org/feed/docs/atom.html
+
 $_ = $http->get($blog_url)->{content};
+my $feed = XML::Feed->new('Atom');
 
-$feed->id("http://".time.rand()."/"); # 魔法……不知道是什么
+# <id> 频道的一个标识，可以随便写
+$feed->id($blog_url);
 
+# <title> 频道名称
 my ($title) = m{<title>(.*?) - 博客园</title>};
-$feed->title($title); # 频道名称
+$feed->title($title);
 
-$feed->link($blog_url); # 与频道关联的站点 url
-
-my ($desc) = m{<p id="tagline">(.*?)</p>};
-$feed->description($desc); # 频道描述
-
-$feed->language('zh-cn'); # 频道语言
-
-my ($copyright) = m{(Copyright &copy; .*)};
-$feed->copyright($copyright); # 版权说明
-
-$feed->generator('jyi2ya magic rss generator'); # 生成 rss 的程序的名字
-
-$feed->self_link('http://orz.sto'); # 链接到 rss 自己的网址 TODO 改这个
-
+# <updated> 修改日期，匹配最后一篇发布的文章的发布日期
 m{posted @ ([^-]*?)-([^-]*?)-([^-]*?) ([^:]*?):(.*)};
-# 修改日期
 $feed->modified(
 	DateTime->new(
 		year => $1,
@@ -49,27 +47,54 @@ $feed->modified(
 	)
 );
 
+# 与频道关联的站点 url
+$feed->link($blog_url);
+
+# 频道描述
+my ($desc) = m{<p id="tagline">(.*?)</p>};
+$feed->description($desc);
+
+# 频道语言
+$feed->language('zh-cn');
+
+# 版权说明
+my ($copyright) = m{(Copyright &copy; .*)};
+$feed->copyright($copyright);
+
+# 生成 rss 的程序的名字
+$feed->generator($generator);
+
+# 链接到 rss 自己的网址
+$feed->self_link($feed_url);
+
 my @urls = uniq sort { $b cmp $a } m{https://www.cnblogs.com/jyi2ya/p/[0-9]+.html}sg;
 for my $url (@urls) {
 	$_ = $http->get($url)->{content};
 	my $entry = XML::Feed::Entry->new();
 
-	$entry->id("http://".time.rand()."/"); # 同样是魔法
+	# 文章的 id，这里可以直接用 url
+	$entry->id($url);
 
+	# 文章标题
 	my ($title) = m{<title>(.*?) - jyi2ya - 博客园</title>};
-	$entry->title($title); # 文章标题
+	$entry->title($title);
 
-	$entry->link($url); # 文章 url
+	# 文章 url
+	$entry->link($url);
 
+	# 大概是摘要……
 	my ($desc) = m{<meta name="description" content="([^"]*)" />};
-	$entry->summary($desc); # 大概是摘要……
+	$entry->summary($desc);
 
+	# 文章内容
 	my ($content) = m{<div id="cnblogs_post_body" class="blogpost-body cnblogs-markdown">(.*?)</div>}s;
-	$entry->content($content); # 文章内容
+	$entry->content($content);
 
-	$entry->author('jyi2ya'); # 文章作者
+	# 文章作者
+	$entry->author($author);
 
-	$entry->category('note'); # 文章分类 TODO: 改这些
+	# 文章分类 FIXME: 不知道怎么得到文章分类
+	$entry->category('note');
 
 	m{<span id="post-date">([^-]*?)-([^-]*?)-([^-]*?) ([^:]*?):(.*)</span>};
 	my $date = DateTime->new(
@@ -82,8 +107,12 @@ for my $url (@urls) {
 		nanosecond => 0,
 		time_zone => $time_zone
 	);
-	$entry->issued($date); # 发布时间
-	$entry->modified($date); # 修改时间
+
+       	# 发布时间
+	$entry->issued($date);
+
+	# 修改时间
+	$entry->modified($date);
 
 	$feed->add_entry($entry);
 }
