@@ -6,8 +6,6 @@ use List::Util qw/uniq max/;
 use DateTime;
 use XML::Feed;
 
-open STDOUT, '>', 'feed.xml';
-
 my $blog_url = 'https://www.cnblogs.com/jyi2ya/';
 my $feed_url = '';
 my $time_zone = 'Asia/Shanghai';
@@ -90,4 +88,4 @@ for my $url (@urls) {
 	$feed->add_entry($entry);
 }
 
-say $feed->as_xml;
+print $feed->as_xml;
