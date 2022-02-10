@@ -16,7 +16,7 @@ die unless defined $blog_url;
 $feed_url //= $blog_url;
 $time_zone //= 'Asia/Shanghai';
 $generator //= 'jyi2ya magic rss generator';
-($author) = ($author // $blog_url =~ m{https://www\.cnblogs\.com/([^/]*)/});
+($author) = ($author // $blog_url =~ m{https://www\.cnblogs\.com/([^/]*)});
 
 my $http = HTTP::Tiny->new;
 
